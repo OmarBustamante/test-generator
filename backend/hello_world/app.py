@@ -58,8 +58,8 @@ def suggest_question_count(text: str) -> int:
 
 # ── Bedrock call ─────────────────────────────────────────────────────────────
 def generate_exam(text: str, num_questions: int, num_options: int) -> list:
-    """Call Claude via Bedrock and return a list of question objects."""
-    model_id = os.environ.get("MODEL_ID", "anthropic.claude-3-5-haiku-20241022-v1:0")
+    """Call Amazon Nova via Bedrock and return a list of question objects."""
+    model_id = os.environ.get("MODEL_ID", "us.amazon.nova-lite-v1:0")
 
     prompt = f"""You are an expert exam writer. Based on the following text, generate {num_questions} multiple choice questions.
 
@@ -87,23 +87,21 @@ Return the JSON array now:"""
 
     client = get_bedrock_client()
 
-    response = client.invoke_model(
+    # Amazon Nova uses the Converse API format
+    response = client.converse(
         modelId=model_id,
-        body=json.dumps({
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 4096,
-            "messages": [
-                {"role": "user", "content": prompt}
-            ],
-        }),
-        contentType="application/json",
-        accept="application/json",
+        messages=[
+            {"role": "user", "content": [{"text": prompt}]}
+        ],
+        inferenceConfig={
+            "maxTokens": 4096,
+            "temperature": 0.3,
+        },
     )
 
-    response_body = json.loads(response["body"].read())
-    raw_text = response_body["content"][0]["text"].strip()
+    raw_text = response["output"]["message"]["content"][0]["text"].strip()
 
-    # Strip markdown code fences if Claude wraps the JSON
+    # Strip markdown code fences if Nova wraps the JSON
     if raw_text.startswith("```"):
         raw_text = raw_text.split("```")[1]
         if raw_text.startswith("json"):

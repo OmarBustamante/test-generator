@@ -1,0 +1,11 @@
+.upload-container{
+    border: solid 2px;
+    width: fit-content;
+    padding: 10px;
+    cursor: pointer;
+
+    .upload-actions{
+        display: flex;
+        justify-content: space-around;
+    }
+}
