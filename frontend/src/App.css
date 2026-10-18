@@ -1,1 +1,9 @@
 /* Component-level styles go here */
+.app-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 8vh;
+    gap: 20px;
+    width: 100%;
+}

@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import Upload from './components/Upload'
+import Upload from './components/Upload/Upload'
 import type { ExamResult } from './types/exam'
+import Exam from './components/Exam/Exam'
+import './App.css'
 
 function App() {
   const [exam, setExam] = useState<ExamResult | null>(null)
 
   return (
-    <div>
+    <div className='app-container'>
       <h1>Test Generator</h1>
 
       {!exam && (
@@ -14,11 +16,7 @@ function App() {
       )}
 
       {exam && (
-        <div>
-          {/* Exam component goes here */}
-          <p>{exam.num_questions} preguntas generadas</p>
-          <button onClick={() => setExam(null)}>Generar otro examen</button>
-        </div>
+        <Exam exam={exam} onReset={() => setExam(null)} />
       )}
     </div>
   )

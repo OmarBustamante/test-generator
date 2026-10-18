@@ -1,5 +1,5 @@
 import { useState, useRef, type ChangeEvent, type DragEvent } from 'react'
-import type { ExamResult } from '../types/exam'
+import type { ExamResult } from '../../types/exam'
 import './Upload.css'
 
 type UploadStatus = 'idle' | 'generating' | 'error'
