@@ -56,9 +56,9 @@ const Exam = ({ exam, onReset }: { exam: ExamResult; onReset: () => void }) => {
         <div className='exam-container'>
 
             <div className='exam-header'>
-                <p className='kicker'>Examen generado</p>
+                <p className='kicker'>Generated exam</p>
                 <hr className='rule' />
-                <p className='exam-header__meta'>{exam.num_questions} preguntas</p>
+                <p className='exam-header__meta'>{exam.num_questions} questions</p>
             </div>
 
             {exam.questions.map((item, index) => (
@@ -88,17 +88,17 @@ const Exam = ({ exam, onReset }: { exam: ExamResult; onReset: () => void }) => {
                         className='btn-primary'
                         onClick={checkAnswers}
                     >
-                        Verificar respuestas
+                        Check answers
                     </button>
                 )}
 
                 {checked && score !== null && (
                     <div className='exam-score'>
                         <p className='exam-score__text'>
-                            Obtuviste <strong>{score}</strong> de <strong>{exam.num_questions}</strong> correctas
+                            You got <strong>{score}</strong> out of <strong>{exam.num_questions}</strong> correct
                         </p>
                         <button type="button" className='btn-secondary' onClick={onReset}>
-                            Generar otro examen
+                            Generate another exam
                         </button>
                     </div>
                 )}
