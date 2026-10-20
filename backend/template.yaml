@@ -35,6 +35,11 @@ Resources:
           Properties:
             Path: /generate
             Method: post
+        AnalyzeDocument:
+          Type: Api
+          Properties:
+            Path: /analyze
+            Method: post
 
 Outputs:
   GenerateExamApi:

@@ -124,6 +124,65 @@ def response(status_code: int, body: dict) -> dict:
     }
 
 
+# ── Shared input validation ──────────────────────────────────────────────────
+def extract_and_validate(body: dict) -> str:
+    """Validate file inputs and return the extracted text. Raises ValueError on bad input."""
+    file_content = body.get("file_content")
+    file_type = body.get("file_type", "").lower()
+
+    if not file_content:
+        raise ValueError("file_content is required")
+
+    if file_type not in ("pdf", "docx", "txt"):
+        raise ValueError("file_type must be pdf, docx, or txt")
+
+    text = extract_text(file_content, file_type)
+
+    if len(text.strip()) < 50:
+        raise ValueError("Document text is too short to generate questions")
+
+    return text
+
+
+# ── /analyze handler ──────────────────────────────────────────────────────────
+def handle_analyze(body: dict) -> dict:
+    """Extract text and return a suggested question count. No LLM call."""
+    text = extract_and_validate(body)
+    word_count = len(text.split())
+
+    return response(200, {
+        "word_count": word_count,
+        "suggested_questions": suggest_question_count(text),
+    })
+
+
+# ── /generate handler ─────────────────────────────────────────────────────────
+def handle_generate(body: dict) -> dict:
+    """Extract text and generate the exam via Bedrock."""
+    text = extract_and_validate(body)
+    num_options = int(body.get("num_options", 4))
+
+    if not (3 <= num_options <= 6):
+        return response(400, {"error": "num_options must be between 3 and 6"})
+
+    # Use user-provided count or suggest based on text length
+    num_questions = body.get("num_questions")
+    if num_questions is None:
+        num_questions = suggest_question_count(text)
+    else:
+        num_questions = int(num_questions)
+        if not (1 <= num_questions <= 30):
+            return response(400, {"error": "num_questions must be between 1 and 30"})
+
+    questions = generate_exam(text, num_questions, num_options)
+
+    return response(200, {
+        "questions": questions,
+        "num_questions": len(questions),
+        "suggested": body.get("num_questions") is None,
+    })
+
+
 # ── Lambda handler ────────────────────────────────────────────────────────────
 def lambda_handler(event, context):
     # Handle CORS preflight
@@ -132,44 +191,12 @@ def lambda_handler(event, context):
 
     try:
         body = json.loads(event.get("body") or "{}")
+        path = event.get("path", "")
 
-        file_content = body.get("file_content")
-        file_type = body.get("file_type", "").lower()
-        num_options = int(body.get("num_options", 4))
+        if path.endswith("/analyze"):
+            return handle_analyze(body)
 
-        # Validate inputs
-        if not file_content:
-            return response(400, {"error": "file_content is required"})
-
-        if file_type not in ("pdf", "docx", "txt"):
-            return response(400, {"error": "file_type must be pdf, docx, or txt"})
-
-        if not (3 <= num_options <= 6):
-            return response(400, {"error": "num_options must be between 3 and 6"})
-
-        # Extract text from the document
-        text = extract_text(file_content, file_type)
-
-        if len(text.strip()) < 50:
-            return response(400, {"error": "Document text is too short to generate questions"})
-
-        # Use user-provided count or suggest based on text length
-        num_questions = body.get("num_questions")
-        if num_questions is None:
-            num_questions = suggest_question_count(text)
-        else:
-            num_questions = int(num_questions)
-            if not (1 <= num_questions <= 30):
-                return response(400, {"error": "num_questions must be between 1 and 30"})
-
-        # Generate the exam
-        questions = generate_exam(text, num_questions, num_options)
-
-        return response(200, {
-            "questions": questions,
-            "num_questions": len(questions),
-            "suggested": body.get("num_questions") is None,
-        })
+        return handle_generate(body)
 
     except ValueError as e:
         return response(400, {"error": str(e)})

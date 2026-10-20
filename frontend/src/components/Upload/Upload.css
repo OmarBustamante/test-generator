@@ -71,3 +71,31 @@
     display: flex;
     gap: var(--space-3);
 }
+
+.upload-config {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-5);
+    background-color: var(--color-bg-surface);
+    border-top: 3px solid var(--color-topbar);
+    border-radius: var(--radius-md);
+}
+
+.upload-config__suggestion {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    line-height: var(--leading-snug);
+}
+
+.upload-config__label {
+    font-size: var(--text-xs);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: var(--font-semibold);
+    color: var(--color-ink-muted);
+}
+
+.upload-config__input {
+    max-width: 120px;
+}

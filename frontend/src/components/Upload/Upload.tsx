@@ -2,10 +2,15 @@ import { useState, useRef, type ChangeEvent, type DragEvent } from 'react'
 import type { ExamResult } from '../../types/exam'
 import './Upload.css'
 
-type UploadStatus = 'idle' | 'generating' | 'error'
+type UploadStatus = 'idle' | 'analyzing' | 'ready' | 'generating' | 'error'
 
 type Props = {
   onExamGenerated: (exam: ExamResult) => void
+}
+
+type Analysis = {
+  word_count: number
+  suggested_questions: number
 }
 
 const ACCEPTED_TYPES: Record<string, string> = {
@@ -14,7 +19,9 @@ const ACCEPTED_TYPES: Record<string, string> = {
   'text/plain': 'txt',
 }
 
-const API_URL = 'http://localhost:3000/generate'
+const API_BASE = 'http://localhost:3000'
+const MIN_QUESTIONS = 1
+const MAX_QUESTIONS = 30
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -33,17 +40,40 @@ const Upload = ({ onExamGenerated }: Props) => {
   const [status, setStatus] = useState<UploadStatus>('idle')
   const [error, setError] = useState<string>('')
   const [isDragging, setIsDragging] = useState(false)
+  const [analysis, setAnalysis] = useState<Analysis | null>(null)
+  const [numQuestions, setNumQuestions] = useState<number>(0)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // ── File selection ────────────────────────────────────────────────────
-  function selectFile(selected: File) {
+  // ── File selection + analysis ─────────────────────────────────────────
+  async function selectFile(selected: File) {
     if (!ACCEPTED_TYPES[selected.type]) {
       setError('Solo se aceptan archivos PDF, DOCX o TXT.')
       return
     }
     setError('')
-    setStatus('idle')
     setFile(selected)
+    setStatus('analyzing')
+
+    try {
+      const fileType = ACCEPTED_TYPES[selected.type]
+      const fileContent = await fileToBase64(selected)
+
+      const res = await fetch(`${API_BASE}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file_content: fileContent, file_type: fileType }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al analizar el documento.')
+
+      setAnalysis(data)
+      setNumQuestions(data.suggested_questions)
+      setStatus('ready')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error inesperado.')
+      setStatus('error')
+    }
   }
 
   function handleInputChange(e: ChangeEvent<HTMLInputElement>) {
@@ -69,12 +99,21 @@ const Upload = ({ onExamGenerated }: Props) => {
     setFile(null)
     setStatus('idle')
     setError('')
+    setAnalysis(null)
+    setNumQuestions(0)
     if (inputRef.current) inputRef.current.value = ''
+  }
+
+  function handleQuestionsChange(e: ChangeEvent<HTMLInputElement>) {
+    const value = parseInt(e.target.value, 10)
+    setNumQuestions(isNaN(value) ? 0 : value)
   }
 
   // ── Generate exam ─────────────────────────────────────────────────────
   async function handleGenerate() {
     if (!file) return
+
+    const clamped = Math.min(Math.max(numQuestions, MIN_QUESTIONS), MAX_QUESTIONS)
 
     setStatus('generating')
     setError('')
@@ -83,36 +122,34 @@ const Upload = ({ onExamGenerated }: Props) => {
       const fileType = ACCEPTED_TYPES[file.type]
       const fileContent = await fileToBase64(file)
 
-      const response = await fetch(API_URL, {
+      const res = await fetch(`${API_BASE}/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           file_content: fileContent,
           file_type: fileType,
+          num_questions: clamped,
           num_options: 4,
         }),
       })
 
-      const data = await response.json()
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al generar el examen.')
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Error al generar el examen.')
-      }
-
-      // Notify parent — Upload's job is done
       onExamGenerated(data)
-
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error inesperado.')
       setStatus('error')
     }
   }
 
+  const isValidCount = numQuestions >= MIN_QUESTIONS && numQuestions <= MAX_QUESTIONS
+
   // ── Render ────────────────────────────────────────────────────────────
   return (
     <div className="upload-container">
 
-      {/* Drop zone — only shown when no file is selected */}
+      {/* Drop zone — only when no file selected */}
       {!file && (
         <div
           className={`upload-dropzone ${isDragging ? 'upload-dropzone--dragging' : ''}`}
@@ -148,6 +185,38 @@ const Upload = ({ onExamGenerated }: Props) => {
         </div>
       )}
 
+      {/* Analyzing state */}
+      {status === 'analyzing' && (
+        <p className="upload-generating" aria-live="polite">Analizando documento...</p>
+      )}
+
+      {/* Question count config — shown after analysis */}
+      {status === 'ready' && analysis && (
+        <div className="upload-config">
+          <p className="upload-config__suggestion">
+            Documento de <strong>{analysis.word_count}</strong> palabras.
+            Sugerimos <strong>{analysis.suggested_questions}</strong> preguntas.
+          </p>
+          <label className="upload-config__label" htmlFor="num-questions">
+            Número de preguntas a generar
+          </label>
+          <input
+            id="num-questions"
+            type="number"
+            min={MIN_QUESTIONS}
+            max={MAX_QUESTIONS}
+            value={numQuestions || ''}
+            onChange={handleQuestionsChange}
+            className="upload-config__input"
+          />
+          {!isValidCount && (
+            <p className="upload-error">
+              Elige entre {MIN_QUESTIONS} y {MAX_QUESTIONS} preguntas.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Error */}
       {error && (
         <p className="upload-error" role="alert">{error}</p>
@@ -159,9 +228,13 @@ const Upload = ({ onExamGenerated }: Props) => {
       )}
 
       {/* Actions */}
-      {file && status !== 'generating' && (
+      {file && (status === 'ready' || status === 'error') && (
         <div className="upload-actions">
-          <button className="btn-primary" onClick={handleGenerate}>
+          <button
+            className="btn-primary"
+            onClick={handleGenerate}
+            disabled={!isValidCount}
+          >
             Generar examen
           </button>
           <button className="btn-secondary" onClick={handleReset}>
