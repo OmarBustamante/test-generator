@@ -8,7 +8,7 @@
 
 /* Header */
 .exam-header {
-    width: 60%;
+    width: 100%;
 }
 
 .exam-header__meta {
@@ -19,7 +19,7 @@
 
 /* Question */
 .question-container {
-    width: 60%;
+    width: 100%;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -103,7 +103,7 @@
 
 /* Footer */
 .exam-footer {
-    width: 60%;
+    width: 100%;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
