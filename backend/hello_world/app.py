@@ -43,6 +43,41 @@ def extract_text(file_content_b64: str, file_type: str) -> str:
     raise ValueError(f"Unsupported file type: {file_type}")
 
 
+# ── URL text extraction ──────────────────────────────────────────────────────
+def extract_text_from_url(url: str) -> str:
+    """Fetch a web page and extract clean, readable text from its HTML."""
+    import requests
+    from bs4 import BeautifulSoup
+
+    if not url.startswith(("http://", "https://")):
+        raise ValueError("URL must start with http:// or https://")
+
+    try:
+        res = requests.get(
+            url,
+            timeout=15,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; TestGenerator/1.0)"},
+        )
+        res.raise_for_status()
+    except requests.RequestException as e:
+        raise ValueError(f"Could not fetch the URL: {e}")
+
+    soup = BeautifulSoup(res.text, "html.parser")
+
+    # Remove non-content elements
+    for tag in soup(["script", "style", "nav", "header", "footer", "aside", "noscript"]):
+        tag.decompose()
+
+    # Prefer the main article content when present
+    main = soup.find("article") or soup.find("main") or soup.body or soup
+
+    text = main.get_text(separator="\n", strip=True)
+
+    # Collapse excessive blank lines
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    return "\n".join(lines)
+
+
 # ── Question count suggestion ────────────────────────────────────────────────
 def suggest_question_count(text: str) -> int:
     """Suggest a sensible default number of questions based on text length."""
@@ -126,20 +161,22 @@ def response(status_code: int, body: dict) -> dict:
 
 # ── Shared input validation ──────────────────────────────────────────────────
 def extract_and_validate(body: dict) -> str:
-    """Validate file inputs and return the extracted text. Raises ValueError on bad input."""
+    """Validate inputs (file OR url) and return the extracted text. Raises ValueError on bad input."""
+    url = body.get("url")
     file_content = body.get("file_content")
-    file_type = body.get("file_type", "").lower()
 
-    if not file_content:
-        raise ValueError("file_content is required")
-
-    if file_type not in ("pdf", "docx", "txt"):
-        raise ValueError("file_type must be pdf, docx, or txt")
-
-    text = extract_text(file_content, file_type)
+    if url:
+        text = extract_text_from_url(url)
+    elif file_content:
+        file_type = body.get("file_type", "").lower()
+        if file_type not in ("pdf", "docx", "txt"):
+            raise ValueError("file_type must be pdf, docx, or txt")
+        text = extract_text(file_content, file_type)
+    else:
+        raise ValueError("Either 'url' or 'file_content' is required")
 
     if len(text.strip()) < 50:
-        raise ValueError("Document text is too short to generate questions")
+        raise ValueError("Extracted text is too short to generate questions")
 
     return text
 

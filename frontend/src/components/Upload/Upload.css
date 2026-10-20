@@ -99,3 +99,51 @@
 .upload-config__input {
     max-width: 120px;
 }
+
+/* Source tabs */
+.upload-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--color-border);
+}
+
+.upload-tab {
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 0;
+    padding: var(--space-3) var(--space-5);
+    margin-bottom: -2px;
+    color: var(--color-ink-muted);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.upload-tab:hover {
+    color: var(--color-ink-primary);
+    background: none;
+}
+
+.upload-tab--active {
+    color: var(--color-ink-primary);
+    border-bottom-color: var(--color-topbar);
+}
+
+.upload-tab--active:hover {
+    background: none;
+}
+
+/* URL input block */
+.upload-url {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-5);
+    background-color: var(--color-bg-surface);
+    border-top: 3px solid var(--color-topbar);
+    border-radius: var(--radius-md);
+}
