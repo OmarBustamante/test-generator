@@ -1,0 +1,16 @@
+node_modules/
+
+dist/
+dist-ssr/
+
+.env
+.env.*.local
+*.local
+
+.git/
+.gitignore
+
+.vscode/
+.idea/
+
+*.log

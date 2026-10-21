@@ -1,0 +1,15 @@
+.aws-sam/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+tests/
+events/
+
+.git/
+.gitignore
+
+README.md

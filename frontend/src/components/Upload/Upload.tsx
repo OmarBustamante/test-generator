@@ -25,7 +25,7 @@ const ACCEPTED_TYPES: Record<string, string> = {
   'text/plain': 'txt',
 }
 
-const API_BASE = 'http://localhost:3000'
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000'
 const MIN_QUESTIONS = 1
 const MAX_QUESTIONS = 30
 
