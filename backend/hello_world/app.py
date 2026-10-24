@@ -6,7 +6,6 @@ import boto3
 from botocore.config import Config
 
 
-# ── Bedrock client ──────────────────────────────────────────────────────────
 def get_bedrock_client():
     region = os.environ.get("BEDROCK_REGION", "us-east-1")
     return boto3.client(
@@ -20,9 +19,7 @@ def get_bedrock_client():
     )
 
 
-# ── Text extraction ─────────────────────────────────────────────────────────
 def extract_text(file_content_b64: str, file_type: str) -> str:
-    """Decode base64 file and extract plain text depending on file type."""
     raw = base64.b64decode(file_content_b64)
 
     if file_type == "txt":
@@ -43,9 +40,7 @@ def extract_text(file_content_b64: str, file_type: str) -> str:
     raise ValueError(f"Unsupported file type: {file_type}")
 
 
-# ── URL text extraction ──────────────────────────────────────────────────────
 def extract_text_from_url(url: str) -> str:
-    """Fetch a web page and extract clean, readable text from its HTML."""
     import requests
     from bs4 import BeautifulSoup
 
@@ -64,23 +59,18 @@ def extract_text_from_url(url: str) -> str:
 
     soup = BeautifulSoup(res.text, "html.parser")
 
-    # Remove non-content elements
     for tag in soup(["script", "style", "nav", "header", "footer", "aside", "noscript"]):
         tag.decompose()
 
-    # Prefer the main article content when present
     main = soup.find("article") or soup.find("main") or soup.body or soup
 
     text = main.get_text(separator="\n", strip=True)
 
-    # Collapse excessive blank lines
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     return "\n".join(lines)
 
 
-# ── Question count suggestion ────────────────────────────────────────────────
 def suggest_question_count(text: str) -> int:
-    """Suggest a sensible default number of questions based on text length."""
     word_count = len(text.split())
     if word_count < 300:
         return 5
@@ -91,9 +81,7 @@ def suggest_question_count(text: str) -> int:
     return 15
 
 
-# ── Bedrock call ─────────────────────────────────────────────────────────────
 def generate_exam(text: str, num_questions: int, num_options: int) -> list:
-    """Call Amazon Nova via Bedrock and return a list of question objects."""
     model_id = os.environ.get("MODEL_ID", "us.amazon.nova-lite-v1:0")
 
     prompt = f"""You are an expert exam writer. Based on the following text, generate {num_questions} multiple choice questions.
@@ -122,7 +110,6 @@ Return the JSON array now:"""
 
     client = get_bedrock_client()
 
-    # Amazon Nova uses the Converse API format
     response = client.converse(
         modelId=model_id,
         messages=[
@@ -136,7 +123,7 @@ Return the JSON array now:"""
 
     raw_text = response["output"]["message"]["content"][0]["text"].strip()
 
-    # Strip markdown code fences if Nova wraps the JSON
+    # Nova sometimes wraps the JSON in a markdown code fence
     if raw_text.startswith("```"):
         raw_text = raw_text.split("```")[1]
         if raw_text.startswith("json"):
@@ -145,7 +132,6 @@ Return the JSON array now:"""
     return json.loads(raw_text)
 
 
-# ── CORS helper ───────────────────────────────────────────────────────────────
 def response(status_code: int, body: dict) -> dict:
     return {
         "statusCode": status_code,
@@ -159,9 +145,7 @@ def response(status_code: int, body: dict) -> dict:
     }
 
 
-# ── Shared input validation ──────────────────────────────────────────────────
 def extract_and_validate(body: dict) -> str:
-    """Validate inputs (file OR url) and return the extracted text. Raises ValueError on bad input."""
     url = body.get("url")
     file_content = body.get("file_content")
 
@@ -181,9 +165,7 @@ def extract_and_validate(body: dict) -> str:
     return text
 
 
-# ── /analyze handler ──────────────────────────────────────────────────────────
 def handle_analyze(body: dict) -> dict:
-    """Extract text and return a suggested question count. No LLM call."""
     text = extract_and_validate(body)
     word_count = len(text.split())
 
@@ -193,16 +175,13 @@ def handle_analyze(body: dict) -> dict:
     })
 
 
-# ── /generate handler ─────────────────────────────────────────────────────────
 def handle_generate(body: dict) -> dict:
-    """Extract text and generate the exam via Bedrock."""
     text = extract_and_validate(body)
     num_options = int(body.get("num_options", 4))
 
     if not (3 <= num_options <= 6):
         return response(400, {"error": "num_options must be between 3 and 6"})
 
-    # Use user-provided count or suggest based on text length
     num_questions = body.get("num_questions")
     if num_questions is None:
         num_questions = suggest_question_count(text)
@@ -220,9 +199,7 @@ def handle_generate(body: dict) -> dict:
     })
 
 
-# ── Lambda handler ────────────────────────────────────────────────────────────
 def lambda_handler(event, context):
-    # Handle CORS preflight
     if event.get("httpMethod") == "OPTIONS":
         return response(200, {})
 

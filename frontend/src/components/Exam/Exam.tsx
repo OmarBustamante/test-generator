@@ -2,7 +2,6 @@ import { useState } from 'react'
 import './Exam.css'
 import type { ExamResult } from '../../types/exam'
 
-// "A" → 0, "B" → 1, "C" → 2, etc.
 const letterToIndex = (letter: string): number =>
     letter.toUpperCase().charCodeAt(0) - 65
 
@@ -14,7 +13,7 @@ const Exam = ({ exam, onReset }: { exam: ExamResult; onReset: () => void }) => {
     const [checked, setChecked] = useState(false)
 
     const selectAnswer = (questionIndex: number, optionIndex: number) => {
-        if (checked) return  // lock answers after checking
+        if (checked) return
         setResults(prev => {
             const updated = [...prev]
             updated[questionIndex] = optionIndex
@@ -24,10 +23,8 @@ const Exam = ({ exam, onReset }: { exam: ExamResult; onReset: () => void }) => {
 
     const checkAnswers = () => setChecked(true)
 
-    // Returns the CSS modifier class for each option button
     const getOptionClass = (questionIndex: number, optionIndex: number): string => {
         if (!checked) {
-            // Before checking — only highlight selected
             return results[questionIndex] === optionIndex ? 'question-option--selected' : ''
         }
 
@@ -35,13 +32,13 @@ const Exam = ({ exam, onReset }: { exam: ExamResult; onReset: () => void }) => {
         const selectedIndex = results[questionIndex]
 
         if (optionIndex === correctIndex && selectedIndex === correctIndex) {
-            return 'question-option--correct'       // selected AND correct → green
+            return 'question-option--correct'
         }
         if (optionIndex === selectedIndex && selectedIndex !== correctIndex) {
-            return 'question-option--incorrect'     // selected but wrong → red
+            return 'question-option--incorrect'
         }
         if (optionIndex === correctIndex && selectedIndex !== correctIndex) {
-            return 'question-option--reveal'        // correct answer when user got it wrong → yellow
+            return 'question-option--reveal'
         }
         return ''
     }

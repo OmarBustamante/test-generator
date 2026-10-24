@@ -14,7 +14,6 @@ type Analysis = {
   suggested_questions: number
 }
 
-// The source payload sent to the API — either a file or a url
 type SourcePayload =
   | { file_content: string; file_type: string }
   | { url: string }
@@ -50,11 +49,9 @@ const Upload = ({ onExamGenerated }: Props) => {
   const [isDragging, setIsDragging] = useState(false)
   const [analysis, setAnalysis] = useState<Analysis | null>(null)
   const [numQuestions, setNumQuestions] = useState<number>(0)
-  // Holds the source payload so generate can reuse it without rebuilding
   const payloadRef = useRef<SourcePayload | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // ── Shared analysis call ──────────────────────────────────────────────
   async function analyze(payload: SourcePayload) {
     setError('')
     setStatus('analyzing')
@@ -79,7 +76,6 @@ const Upload = ({ onExamGenerated }: Props) => {
     }
   }
 
-  // ── File selection ────────────────────────────────────────────────────
   async function selectFile(selected: File) {
     if (!ACCEPTED_TYPES[selected.type]) {
       setError('Only PDF, DOCX, or TXT files are accepted.')
@@ -109,7 +105,6 @@ const Upload = ({ onExamGenerated }: Props) => {
     setIsDragging(false)
   }
 
-  // ── URL submission ────────────────────────────────────────────────────
   function handleUrlAnalyze() {
     const trimmed = url.trim()
     if (!trimmed) {
@@ -119,7 +114,6 @@ const Upload = ({ onExamGenerated }: Props) => {
     analyze({ url: trimmed })
   }
 
-  // ── Reset ─────────────────────────────────────────────────────────────
   function handleReset() {
     setFile(null)
     setUrl('')
@@ -142,7 +136,6 @@ const Upload = ({ onExamGenerated }: Props) => {
     setNumQuestions(isNaN(value) ? 0 : value)
   }
 
-  // ── Generate exam ─────────────────────────────────────────────────────
   async function handleGenerate() {
     if (!payloadRef.current) return
 
@@ -175,11 +168,9 @@ const Upload = ({ onExamGenerated }: Props) => {
   const isValidCount = numQuestions >= MIN_QUESTIONS && numQuestions <= MAX_QUESTIONS
   const hasSource = file !== null || url.trim() !== ''
 
-  // ── Render ────────────────────────────────────────────────────────────
   return (
     <div className="upload-container">
 
-      {/* Source toggle */}
       <div className="upload-tabs">
         <button
           type="button"
@@ -197,7 +188,6 @@ const Upload = ({ onExamGenerated }: Props) => {
         </button>
       </div>
 
-      {/* FILE source */}
       {source === 'file' && (
         <>
           {!file && (
@@ -236,7 +226,6 @@ const Upload = ({ onExamGenerated }: Props) => {
         </>
       )}
 
-      {/* URL source */}
       {source === 'url' && status !== 'ready' && status !== 'generating' && (
         <div className="upload-url">
           <label className="upload-config__label" htmlFor="source-url">
@@ -261,7 +250,6 @@ const Upload = ({ onExamGenerated }: Props) => {
         </div>
       )}
 
-      {/* URL confirmation when ready */}
       {source === 'url' && (status === 'ready' || status === 'generating') && (
         <div className="upload-file-info">
           <p className="upload-file-info__name">Web page</p>
@@ -269,14 +257,12 @@ const Upload = ({ onExamGenerated }: Props) => {
         </div>
       )}
 
-      {/* Analyzing state */}
       {status === 'analyzing' && (
         <p className="upload-generating" aria-live="polite">
           {source === 'url' ? 'Fetching and analyzing page...' : 'Analyzing document...'}
         </p>
       )}
 
-      {/* Question count config */}
       {status === 'ready' && analysis && (
         <div className="upload-config">
           <p className="upload-config__suggestion">
@@ -303,17 +289,14 @@ const Upload = ({ onExamGenerated }: Props) => {
         </div>
       )}
 
-      {/* Error */}
       {error && (
         <p className="upload-error" role="alert">{error}</p>
       )}
 
-      {/* Generating state */}
       {status === 'generating' && (
         <p className="upload-generating" aria-live="polite">Generating exam...</p>
       )}
 
-      {/* Actions */}
       {hasSource && (status === 'ready' || status === 'error') && (
         <div className="upload-actions">
           <button
