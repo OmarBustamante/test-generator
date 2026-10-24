@@ -152,6 +152,120 @@ Then open <http://localhost:5173>.
 
 ---
 
+## Deploy your own infrastructure (AWS + Terraform)
+
+The `infra/` folder contains Terraform that provisions the full production stack:
+a Lambda + HTTP API backend, an S3 + CloudFront frontend, and (optionally) a custom
+domain with HTTPS via Route 53 and ACM.
+
+### Requirements
+
+- [Terraform](https://developer.hashicorp.com/terraform/install) 1.5+
+- AWS CLI configured with credentials that can create IAM, Lambda, API Gateway,
+  S3, CloudFront, ACM, and Route 53 resources
+- [Node.js](https://nodejs.org/) 20+ and [Python](https://www.python.org/) 3.13+
+- A domain registered in **Route 53** (only if you want a custom domain)
+
+### Step 1 — Set your own values
+
+The Terraform variables default to the author's names, which will not work for you
+(S3 bucket names are globally unique, and the domain is specific). Override them by
+creating `infra/terraform.tfvars` (this file is git-ignored):
+
+```hcl
+project_name = "test-generator"
+bucket_name  = "test-generator-<your-unique-suffix>"
+domain_name  = "yourdomain.com"
+aws_region   = "us-east-1"
+```
+
+> If you do **not** want a custom domain, see Step 5 for how to skip the DNS part
+> and use the free CloudFront URL instead.
+
+### Step 2 — Package the Lambda
+
+The Lambda zip is built from a local folder. Install the dependencies and copy the
+handler into `backend/build/`:
+
+```bash
+# from backend/
+python -m pip install -r hello_world/requirements.txt -t build/
+# macOS / Linux:
+cp hello_world/app.py build/
+# Windows (PowerShell):
+Copy-Item hello_world/app.py build/
+```
+
+### Step 3 — Provision the infrastructure
+
+```bash
+# from infra/
+terraform init
+terraform apply
+```
+
+Terraform prints these outputs when it finishes:
+
+- `api_base_url` — the HTTP API endpoint
+- `cloudfront_url` — the CloudFront URL of the frontend
+- `s3_bucket_name` — the bucket to upload the build to
+
+> The ACM certificate validation and CloudFront propagation can take 10–15 minutes
+> on the first apply. This is normal.
+
+### Step 4 — Build and upload the frontend
+
+Point the frontend at your API, build it, then sync to S3 and refresh CloudFront:
+
+```bash
+# from frontend/ — create .env.production with your API URL
+# VITE_API_BASE=<the api_base_url output from Terraform>
+
+npm install
+npm run build
+
+# upload (use the s3_bucket_name output)
+aws s3 sync dist/ s3://<your-bucket-name> --delete
+
+# invalidate the CloudFront cache (find the distribution ID in the AWS console
+# or via: aws cloudfront list-distributions)
+aws cloudfront create-invalidation --distribution-id <your-dist-id> --paths "/*"
+```
+
+Your app is now live at `cloudfront_url` (and at your domain, if configured).
+
+### Step 5 — Custom domain (optional)
+
+The `infra/dns.tf` file creates an ACM certificate and Route 53 records for a
+custom domain. It assumes the domain's hosted zone already exists (Route 53 creates
+it automatically when you register a domain there).
+
+If you **don't** want a custom domain, delete `infra/dns.tf` and, in
+`infra/frontend.tf`, remove the `aliases` line and replace the `viewer_certificate`
+block with:
+
+```hcl
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+```
+
+Then the app is served only from the free `*.cloudfront.net` URL.
+
+### Tearing it down
+
+```bash
+# from infra/ — empty the bucket first, then destroy
+aws s3 rm s3://<your-bucket-name> --recursive
+terraform destroy
+```
+
+> `terraform destroy` does not delete the Route 53 hosted zone or the registered
+> domain — those were created outside Terraform and must be removed manually if you
+> no longer want them.
+
+---
+
 ## Configuration
 
 ### Frontend (`frontend/.env`)

@@ -245,3 +245,6 @@ $RECYCLE.BIN/
 
 # SAM build artifacts
 .aws-sam/
+
+# Lambda deployment package
+build/
